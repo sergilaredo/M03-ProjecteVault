@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <title>Vault Login</title>
+</head>
+<body>
+    <h2>Accés a la Caixa Forta</h2>
+    <input type="text" id="username" placeholder="Usuari">
+    <input type="password" id="password" placeholder="Contrasenya">
+    <button id="loginBtn" onclick="checkLogin()">Entrar</button>
+
+    <p id="message"></p>
+
+    <script>
+        function checkLogin() {
+            var u = document.getElementById("username").value;
+            var p = document.getElementById("password").value;
+            // Simulació de vulnerabilitat: Credencials hardcoded
+            if (u === "admin" && p === "password123") {
+                document.getElementById("message").innerText = "ACCESS_GRANTED";
+                document.getElementById("message").style.color = "green";
+            } else {
+                document.getElementById("message").innerText = "ACCESS_DENIED";
+                document.getElementById("message").style.color = "red";
+            }
+        }
+    </script>
+</body>
+</html>
