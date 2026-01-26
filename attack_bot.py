@@ -1,54 +1,59 @@
 import os
-import time
-import sys  # <--- IMPORT IMPORTANT
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options # <--- Necessari per mode headless
+from selenium.webdriver.chrome.options import Options
+import time
 
-# 1. Configuració
-ruta_fitxer = os.path.abspath("login.html")
-target_url = f"file://{ruta_fitxer}"
+# 1. Configuración del Navegador (Chrome) para CI/CD y Local
+options = Options()
+options.add_argument('--headless') # Obligatorio para GitHub Actions
+options.add_argument('--no-sandbox')
+options.add_argument('--disable-dev-shm-usage')
+options.add_argument('--window-size=1920,1080')
+
+driver = webdriver.Chrome(options=options)
+
+# 2. Ruta absoluta al archivo login.html
+file_path = "file://" + os.path.abspath("login.html")
+
+# Llista de contrasenyes per a l'atac (el diccionari)
 passwords = ['1234', 'qwerty', 'admin', 'password123', 'letmein']
 
-# 2. Configuració del Navegador (MODE HEADLESS)
-print("[*] Configurant navegador en mode headless...")
-chrome_options = Options()
-chrome_options.add_argument("--headless=new") # Execució sense pantalla
-chrome_options.add_argument("--no-sandbox")
-
 try:
-    driver = webdriver.Chrome(options=chrome_options)
-except:
-    # Fallback bàsic per si no troba Chrome (per local)
-    driver = webdriver.Firefox()
+    for pwd in passwords:
+        driver.get(file_path)
+        # Espera un momento para asegurar que la página carga
+        time.sleep(0.5)
 
-# 3. Bucle d'atac
-print(f"[*] Iniciant atac contra: {target_url}")
+        # Inyectar credenciales (Usuario: admin)
+        driver.find_element(By.ID, "username").send_keys("admin")
+        driver.find_element(By.ID, "password").send_keys(pwd)
 
-for password in passwords:
-    # ... (aquesta part del bucle és igual que abans) ...
-    driver.get(target_url)
-    
-    # Localitzar elements
-    driver.find_element(By.ID, "username").clear()
-    driver.find_element(By.ID, "username").send_keys("admin")
-    
-    driver.find_element(By.ID, "password").clear()
-    driver.find_element(By.ID, "password").send_keys(password)
-    
-    driver.find_element(By.ID, "loginBtn").click()
-    time.sleep(0.5) # Espera breu
-    
-    missatge = driver.find_element(By.ID, "message").text
-    
-    if "ACCESS_GRANTED" in missatge:
-        print(f"\n[!!!] VULNERABILITAT CRÍTICA DETECTADA! Password: {password}")
-        print("[!!!] Aturant la pipeline per seguretat.")
-        driver.quit()
-        sys.exit(1) # <--- AQUESTA LÍNIA FA QUE LA PIPELINE SIGUI VERMELLA 🔴
-    else:
-        print(f"[-] Accés denegat amb: {password}")
+        # Clicar botón de entrar
+        driver.find_element(By.ID, "loginBtn").click()
 
-driver.quit()
-print("[*] No s'han trobat vulnerabilitats.")
-sys.exit(0) # Tot correcte
+        # Pequeña espera para que el script de la web procese el login
+        time.sleep(0.5)
+
+        # Comprobar si aparece el mensaje de éxito
+        result_message = driver.find_element(By.ID, "message").text
+        print(f"Provant contrasenya: {pwd} -> Resultat: {result_message}")
+
+        if "ACCESS_GRANTED" in result_message:
+            print("\n!!! VULNERABILITAT TROBADA !!!")
+            print(f"La contrasenya és: {pwd}")
+
+            # Captura de pantalla automática
+            driver.save_screenshot('hacked.png')
+            print("Evidència guardada a 'hacked.png'.")
+
+            # SALIDA CRÍTICA: exit(1) hace que la pipeline de GitHub se ponga en ROJO
+            print("Aturant pipeline per fallada de seguretat ...")
+            os._exit(1)
+
+except Exception as e:
+    print(f"Error durant l'atac: {e}")
+    os._exit(1)
+
+finally:
+    driver.quit()
